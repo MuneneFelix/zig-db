@@ -16,7 +16,7 @@ pub fn main() !void {
     // Example: Write data to the page, read it back, etc.
 
     // Flush any buffered data
-    try page_manager.flush();
+    //try page_manager.flush();
 }
 
 test "storage engine integration test" {
