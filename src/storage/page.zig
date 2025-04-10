@@ -1,26 +1,26 @@
 const std = @import("std");
-pub const PAGE_SIZE:usize = 4096;
-pub const HEADER_SIZE:usize = @sizeOf(PageHeader);
-pub const DATA_SIZE:usize = PAGE_SIZE-HEADER_SIZE;
-const PageInitErrors = error {OutOfMemory,InvalidPageId,AllocationError};
+pub const PAGE_SIZE: usize = 4096;
+pub const HEADER_SIZE: usize = @sizeOf(PageHeader);
+pub const DATA_SIZE: usize = PAGE_SIZE - HEADER_SIZE;
+const PageInitErrors = error{ OutOfMemory, InvalidPageId, AllocationError };
 const DeleteRecordError = error{
-       InvalidOffset,      // Offset out of bounds
-       RecordNotFound,    // No record at offset
-       AlreadyDeleted,    // Record already marked as deleted
-       InvalidRecord,
-   };
+    InvalidOffset, // Offset out of bounds
+    RecordNotFound, // No record at offset
+    AlreadyDeleted, // Record already marked as deleted
+    InvalidRecord,
+};
 pub const PageHeader = struct {
     page_id: u32, //unique id identifying a page
-    next_page: u32,  // For linked pages
+    next_page: u32, // For linked pages
     free_space_offset: u16, //free ptr
     record_count: u16,
-    checksum: u32,   // For data integrity
+    checksum: u32, // For data integrity
     flags: u16,
 };
 
 pub const RecordHeader = struct {
     size: u16, //size of the record
-    offset: u16, //offset within the page   
+    offset: u16, //offset within the page
     is_deleted: bool, //Tombstone for deleted records
 };
 
@@ -32,7 +32,9 @@ pub const Record = struct {
 
     // Helper functions for the record
     pub fn size(self: Self) u16 {
-        return @sizeOf(RecordHeader) + @intCast(u16, self.data.len);
+        const sizeofrec: u16 = @intCast(self.data.len);
+
+        return @sizeOf(RecordHeader) + sizeofrec;
     }
 
     // Serialize the record for storage
@@ -40,7 +42,7 @@ pub const Record = struct {
         // Copy header
         const header_bytes = std.mem.asBytes(&self.header);
         std.mem.copy(u8, buffer[0..@sizeOf(RecordHeader)], header_bytes);
-        
+
         // Copy data
         std.mem.copy(u8, buffer[@sizeOf(RecordHeader)..], self.data);
     }
@@ -49,7 +51,7 @@ pub const Record = struct {
     pub fn deserialize(buffer: []const u8) Self {
         const header = @as(*const RecordHeader, @ptrCast(buffer[0..@sizeOf(RecordHeader)])).*;
         const data = buffer[@sizeOf(RecordHeader)..header.size];
-        
+
         return Self{
             .header = header,
             .data = data,
@@ -60,44 +62,30 @@ pub const Record = struct {
 pub const Page = struct {
     header: PageHeader,
     allocator: std.mem.Allocator,
-    data: []u8,  // Fixed size data buffer
-    
+    data: []u8, // Fixed size data buffer
+
     const Self = @This();
-    
+
     pub fn init(allocator: std.mem.Allocator, page_id: u32) !Self {
-        // Implementation hint: 
+        // Implementation hint:
         // - Allocate fixed size page (e.g. 4KB)
         // - Initialize header
         //checks for valid page id
-        if (page_id == 0)
-        {
+        if (page_id == 0) {
             return PageInitErrors.InvalidPageId;
         }
 
         //allocate byte buffer for data
         const data = try allocator.alloc(u8, DATA_SIZE);
-        const page_header = PageHeader{
-            .page_id = page_id,
-            .next_page = 0,
-            .checksum = 0,
-            .free_space_offset = DATA_SIZE,
-            .record_count = 0,
-            .flags = 0
-        };
-        return Self{
-            .header = page_header,
-            .data = data,
-            .allocator = allocator
-        };
+        const page_header = PageHeader{ .page_id = page_id, .next_page = 0, .checksum = 0, .free_space_offset = DATA_SIZE, .record_count = 0, .flags = 0 };
+        return Self{ .header = page_header, .data = data, .allocator = allocator };
 
         //create page header instance
         //initialize header fields
         //return page struct
 
-
     }
-    pub fn deinit(self: *Self) void
-    {
+    pub fn deinit(self: *Self) void {
         self.allocator.free(self.data);
     }
 
@@ -117,11 +105,11 @@ pub const Page = struct {
         // 3. Write record header and data
         const record_header = RecordHeader{
             .size = @intCast(data.len),
-            .offset = @intCast( new_offset),
+            .offset = @intCast(new_offset),
             .is_deleted = false,
         };
-        std.mem.copyForwards(u8, self.data,record_header );
-        std.mem.copyForwards(u8, self.data,data);
+        std.mem.copyForwards(u8, self.data, record_header);
+        std.mem.copyForwards(u8, self.data, data);
         // 4. Update page header (free_space_offset, record_count)
         self.header.free_space_offset = new_offset;
         self.header.record_count = self.header.record_count + 1;
@@ -131,23 +119,20 @@ pub const Page = struct {
 
     pub fn deleteRecord(self: *Self, offset: u16) !void {
         // 1. Validate offset
-        if ((offset < 0) or (self.header.free_space_offset>offset))
-        {
-           return DeleteRecordError.InvalidOffset;
+        if ((offset < 0) or (self.header.free_space_offset > offset)) {
+            return DeleteRecordError.InvalidOffset;
         }
-    
+
         // 2. Mark record as deleted
-        const buffer :[]u8 = self.data[offset..];
-        var recHeader: RecordHeader = @as(*RecordHeader,@ptrCast(&buffer[0])).*;
-        if (recHeader.size<=0)
-        {
+        const buffer: []u8 = self.data[offset..];
+        var recHeader: RecordHeader = @as(*RecordHeader, @ptrCast(&buffer[0])).*;
+        if (recHeader.size <= 0) {
             DeleteRecordError.InvalidRecord;
         }
         recHeader.is_deleted = true;
-        
-        const header_bytes = std.mem.asBytes(&recHeader);
-        std.mem.copy(u8, self.data[offset..(offset+@sizeOf(RecordHeader))],header_bytes[0..@sizeOf(RecordHeader)]);
 
+        const header_bytes = std.mem.asBytes(&recHeader);
+        std.mem.copy(u8, self.data[offset..(offset + @sizeOf(RecordHeader))], header_bytes[0..@sizeOf(RecordHeader)]);
 
         // 3. Update page metadata
         self.header.record_count = self.header.record_count - 1;
@@ -158,14 +143,26 @@ pub const Page = struct {
 
     pub fn getRecord(self: *Self, offset: u16) ![]const u8 {
         // 1. Validate offset
+        if ((offset < 0) or (self.header.free_space_offset > offset)) {
+            return DeleteRecordError.InvalidOffset;
+        }
         // 2. Check if record is deleted
+        const buffer: []u8 = self.data[offset..];
+        const recHeader: RecordHeader = @as(*RecordHeader, @ptrCast(&buffer[0])).*;
+        if (recHeader.is_deleted == true) {
+            return DeleteRecordError.AlreadyDeleted;
+        }
+
         // 3. Return record data
+        const data = buffer[offset + @sizeOf(RecordHeader) .. recHeader.size];
+
+        return data;
     }
 
     fn hasEnoughSpace(self: *Self, data_size: usize) bool {
         // Calculate total space needed (record header + data)
         const needed_space = @sizeOf(RecordHeader) + data_size;
-        
+
         // Calculate available space
         const available_space = DATA_SIZE - self.header.free_space_offset;
 
@@ -183,8 +180,4 @@ pub const Page = struct {
 
         return true;
     }
-
-    
-
-
-}; 
+};
