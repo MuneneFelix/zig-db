@@ -153,8 +153,17 @@ pub const Page = struct {
             return DeleteRecordError.AlreadyDeleted;
         }
 
+        //validate recheader.size
+        if (recHeader.size == 0) {
+            return DeleteRecordError.InvalidRecord;
+        }
+        if (recHeader.size > (self.header.free_space_offset - offset)) {
+            DeleteRecordError.InvalidRecord;
+        }
         // 3. Return record data
-        const data = buffer[offset + @sizeOf(RecordHeader) .. recHeader.size];
+        const data = buffer[@sizeOf(RecordHeader) .. recHeader.size + @sizeOf(RecordHeader)];
+
+        //4. Error handling for corrupted records
 
         return data;
     }
