@@ -2,7 +2,7 @@ const std = @import("std");
 pub const PAGE_SIZE: usize = 4096;
 pub const HEADER_SIZE: usize = @sizeOf(PageHeader);
 pub const DATA_SIZE: usize = PAGE_SIZE - HEADER_SIZE;
-const PageInitErrors = error{ OutOfMemory, InvalidPageId, AllocationError };
+const PageInitErrors = error{ OutOfMemory, InvalidPageId, AllocationError, InvalidRecordSize };
 const DeleteRecordError = error{
     InvalidOffset, // Offset out of bounds
     RecordNotFound, // No record at offset
@@ -99,7 +99,10 @@ pub const Page = struct {
         if (!self.hasEnoughSpace(data.len)) {
             return PageInitErrors.OutOfMemory;
         }
-        const total_record_size: u16 = data.len + @sizeOf(RecordHeader);
+        const recHeadersize: u16 = @intCast(@sizeOf(RecordHeader));
+        const datalength: u16 = @intCast(data.len);
+        const total_record_size: u16 = recHeadersize + datalength;
+
         // 2. Find location to insert (using free_space_offset)
         const new_offset = self.header.free_space_offset - total_record_size;
         // 3. Write record header and data
@@ -108,6 +111,7 @@ pub const Page = struct {
             .offset = @intCast(new_offset),
             .is_deleted = false,
         };
+
         std.mem.copyForwards(u8, self.data, record_header);
         std.mem.copyForwards(u8, self.data, data);
         // 4. Update page header (free_space_offset, record_count)
