@@ -11,10 +11,8 @@ test "getRecord retrieved a valid record" {
     //2. Insert a record
     const record_data = "Hello, World";
     const offset = try page.insertRecord(record_data);
-
     //3. retrieve the record
     const retrieved_data = try page.getRecord(offset);
-
     //4. Assert that the retrieved data matches the inserted data
     try std.testing.expectEqualStrings(record_data, retrieved_data);
 

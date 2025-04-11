@@ -77,6 +77,7 @@ pub const Page = struct {
 
         //allocate byte buffer for data
         const data = try allocator.alloc(u8, DATA_SIZE);
+
         const page_header = PageHeader{ .page_id = page_id, .next_page = 0, .checksum = 0, .free_space_offset = DATA_SIZE, .record_count = 0, .flags = 0 };
         return Self{ .header = page_header, .data = data, .allocator = allocator };
 
@@ -103,19 +104,22 @@ pub const Page = struct {
         const datalength: u16 = @intCast(data.len);
         const total_record_size: u16 = recHeadersize + datalength;
 
+        std.debug.print("\n Print Total Record Size {any} \n", .{total_record_size});
         // 2. Find location to insert (using free_space_offset)
         const new_offset = self.header.free_space_offset - total_record_size;
+
         // 3. Write record header and data
         const record_header = RecordHeader{
             .size = @intCast(data.len),
             .offset = @intCast(new_offset),
             .is_deleted = false,
         };
+        std.debug.print("\n Print Record Header Before Insertion {any}\n", .{record_header});
 
         //cast record header into a slice []u8
         const recHeader_bytes: []const u8 = std.mem.asBytes(&record_header);
-        std.mem.copyForwards(u8, self.data, recHeader_bytes);
-        std.mem.copyForwards(u8, self.data, data);
+        std.mem.copyForwards(u8, self.data[new_offset..(new_offset + @sizeOf(RecordHeader))], recHeader_bytes);
+        std.mem.copyForwards(u8, self.data[(new_offset + @sizeOf(RecordHeader))..(new_offset + total_record_size)], data);
         // 4. Update page header (free_space_offset, record_count)
         self.header.free_space_offset = new_offset;
         self.header.record_count = self.header.record_count + 1;
@@ -152,6 +156,9 @@ pub const Page = struct {
         if ((offset < 0) or (self.header.free_space_offset > offset)) {
             return DeleteRecordError.InvalidOffset;
         }
+        if (offset >= DATA_SIZE) {
+            return DeleteRecordError.InvalidOffset;
+        }
         // 2. Check if record is deleted
         const buffer: []u8 = self.data[offset..];
         const recHeaderptr: *RecordHeader = @ptrCast(@alignCast(&buffer[0]));
@@ -166,11 +173,12 @@ pub const Page = struct {
         if (recHeader.size == 0) {
             return DeleteRecordError.InvalidRecord;
         }
-        if (recHeader.size > (self.header.free_space_offset - offset)) {
+
+        if ((offset + @sizeOf(RecordHeader) + recHeader.size) > DATA_SIZE) {
             return DeleteRecordError.InvalidRecord;
         }
         // 3. Return record data
-        const data = buffer[@sizeOf(RecordHeader) .. recHeader.size + @sizeOf(RecordHeader)];
+        const data = self.data[offset + @sizeOf(RecordHeader) .. offset + recHeader.size + @sizeOf(RecordHeader)];
 
         //4. Error handling for corrupted records
 
@@ -181,20 +189,23 @@ pub const Page = struct {
         // Calculate total space needed (record header + data)
         const needed_space = @sizeOf(RecordHeader) + data_size;
 
+        //message std memory
+        // std.debug.print("DATA SIZE {any}, FREE SPACE OFFSET {any}", .{ DATA_SIZE, self.header.free_space_offset });
         // Calculate available space
-        const available_space = DATA_SIZE - self.header.free_space_offset;
+        const available_space = self.header.free_space_offset;
 
         // Compare and return
         return available_space >= needed_space;
     }
 
     fn isValidRecordSize(data_size: usize) bool {
+        //std.debug.print("record size check {any}", .{data_size});
         // 1. Check minimum size
         if (data_size == 0) return false;
 
         // 2. Check maximum size
-        const max_record_size = DATA_SIZE - @sizeOf(RecordHeader);
-        if (data_size > max_record_size) return false;
+
+        if (data_size > DATA_SIZE) return false;
 
         return true;
     }
