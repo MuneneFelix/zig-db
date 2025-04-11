@@ -112,7 +112,9 @@ pub const Page = struct {
             .is_deleted = false,
         };
 
-        std.mem.copyForwards(u8, self.data, record_header);
+        //cast record header into a slice []u8
+        const recHeader_bytes: []const u8 = std.mem.asBytes(&record_header);
+        std.mem.copyForwards(u8, self.data, recHeader_bytes);
         std.mem.copyForwards(u8, self.data, data);
         // 4. Update page header (free_space_offset, record_count)
         self.header.free_space_offset = new_offset;
@@ -152,7 +154,10 @@ pub const Page = struct {
         }
         // 2. Check if record is deleted
         const buffer: []u8 = self.data[offset..];
-        const recHeader: RecordHeader = @as(*RecordHeader, @ptrCast(&buffer[0])).*;
+        const recHeaderptr: *RecordHeader = @ptrCast(@alignCast(&buffer[0]));
+
+        const recHeader = recHeaderptr.*;
+        // const recHeader: *RecordHeader = @as(*RecordHeader, @ptrCast(&buffer[0])).*;
         if (recHeader.is_deleted == true) {
             return DeleteRecordError.AlreadyDeleted;
         }
@@ -162,7 +167,7 @@ pub const Page = struct {
             return DeleteRecordError.InvalidRecord;
         }
         if (recHeader.size > (self.header.free_space_offset - offset)) {
-            DeleteRecordError.InvalidRecord;
+            return DeleteRecordError.InvalidRecord;
         }
         // 3. Return record data
         const data = buffer[@sizeOf(RecordHeader) .. recHeader.size + @sizeOf(RecordHeader)];
