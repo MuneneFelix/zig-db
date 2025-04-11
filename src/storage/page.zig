@@ -1,4 +1,5 @@
 const std = @import("std");
+const printer = @import("std").debug;
 pub const PAGE_SIZE: usize = 4096;
 pub const HEADER_SIZE: usize = @sizeOf(PageHeader);
 pub const DATA_SIZE: usize = PAGE_SIZE - HEADER_SIZE;
@@ -106,8 +107,11 @@ pub const Page = struct {
 
         std.debug.print("\n Print Total Record Size {any} \n", .{total_record_size});
         // 2. Find location to insert (using free_space_offset)
-        const new_offset = self.header.free_space_offset - total_record_size;
-
+        const valid_offset = (self.header.free_space_offset - total_record_size);
+        const alignment: u2 = @alignOf(RecordHeader);
+        printer.print("alignment value: {any}", .{alignment});
+        const new_offset = valid_offset - (valid_offset % alignment);
+        printer.print("new offset value: {any}", .{new_offset});
         // 3. Write record header and data
         const record_header = RecordHeader{
             .size = @intCast(data.len),
@@ -134,15 +138,18 @@ pub const Page = struct {
         }
 
         // 2. Mark record as deleted
+        // 2. Check if record is deleted
         const buffer: []u8 = self.data[offset..];
-        var recHeader: RecordHeader = @as(*RecordHeader, @ptrCast(&buffer[0])).*;
+        const recHeaderptr: *RecordHeader = @ptrCast(@alignCast(&buffer[0]));
+
+        var recHeader = recHeaderptr.*;
         if (recHeader.size <= 0) {
-            DeleteRecordError.InvalidRecord;
+            return DeleteRecordError.InvalidRecord;
         }
         recHeader.is_deleted = true;
 
         const header_bytes = std.mem.asBytes(&recHeader);
-        std.mem.copy(u8, self.data[offset..(offset + @sizeOf(RecordHeader))], header_bytes[0..@sizeOf(RecordHeader)]);
+        std.mem.copyForwards(u8, self.data[offset..(offset + @sizeOf(RecordHeader))], header_bytes);
 
         // 3. Update page metadata
         self.header.record_count = self.header.record_count - 1;
