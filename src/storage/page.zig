@@ -1,5 +1,5 @@
 const std = @import("std");
-const printer = @import("std").debug;
+const alignment: u2 = @alignOf(RecordHeader);
 pub const PAGE_SIZE: usize = 4096;
 pub const HEADER_SIZE: usize = @sizeOf(PageHeader);
 pub const DATA_SIZE: usize = PAGE_SIZE - HEADER_SIZE;
@@ -105,20 +105,17 @@ pub const Page = struct {
         const datalength: u16 = @intCast(data.len);
         const total_record_size: u16 = recHeadersize + datalength;
 
-        std.debug.print("\n Print Total Record Size {any} \n", .{total_record_size});
         // 2. Find location to insert (using free_space_offset)
         const valid_offset = (self.header.free_space_offset - total_record_size);
-        const alignment: u2 = @alignOf(RecordHeader);
-        printer.print("alignment value: {any}", .{alignment});
+
         const new_offset = valid_offset - (valid_offset % alignment);
-        printer.print("new offset value: {any}", .{new_offset});
+
         // 3. Write record header and data
         const record_header = RecordHeader{
             .size = @intCast(data.len),
             .offset = @intCast(new_offset),
             .is_deleted = false,
         };
-        std.debug.print("\n Print Record Header Before Insertion {any}\n", .{record_header});
 
         //cast record header into a slice []u8
         const recHeader_bytes: []const u8 = std.mem.asBytes(&record_header);
@@ -136,6 +133,10 @@ pub const Page = struct {
         if ((offset < 0) or (self.header.free_space_offset > offset)) {
             return DeleteRecordError.InvalidOffset;
         }
+        if ((offset & (alignment - 1)) != 0) {
+            return DeleteRecordError.InvalidOffset;
+        }
+        // 2. check offset alignment
 
         // 2. Mark record as deleted
         // 2. Check if record is deleted
@@ -163,6 +164,9 @@ pub const Page = struct {
         if ((offset < 0) or (self.header.free_space_offset > offset)) {
             return DeleteRecordError.InvalidOffset;
         }
+        if ((offset & (alignment - 1)) != 0) {
+            return DeleteRecordError.InvalidOffset;
+        }
         if (offset >= DATA_SIZE) {
             return DeleteRecordError.InvalidOffset;
         }
@@ -184,11 +188,20 @@ pub const Page = struct {
         if ((offset + @sizeOf(RecordHeader) + recHeader.size) > DATA_SIZE) {
             return DeleteRecordError.InvalidRecord;
         }
+        if (recHeader.offset != offset) {
+            return DeleteRecordError.InvalidRecord;
+        }
+        if (recHeader.size > DATA_SIZE or recHeader.size == 0) {
+            return DeleteRecordError.InvalidRecord;
+        }
+
         // 3. Return record data
         const data = self.data[offset + @sizeOf(RecordHeader) .. offset + recHeader.size + @sizeOf(RecordHeader)];
 
         //4. Error handling for corrupted records
-
+        if (data.len != recHeader.size) {
+            return DeleteRecordError.InvalidRecord;
+        }
         return data;
     }
 
@@ -196,8 +209,6 @@ pub const Page = struct {
         // Calculate total space needed (record header + data)
         const needed_space = @sizeOf(RecordHeader) + data_size;
 
-        //message std memory
-        // std.debug.print("DATA SIZE {any}, FREE SPACE OFFSET {any}", .{ DATA_SIZE, self.header.free_space_offset });
         // Calculate available space
         const available_space = self.header.free_space_offset;
 
@@ -206,7 +217,7 @@ pub const Page = struct {
     }
 
     fn isValidRecordSize(data_size: usize) bool {
-        //std.debug.print("record size check {any}", .{data_size});
+
         // 1. Check minimum size
         if (data_size == 0) return false;
 
@@ -215,5 +226,41 @@ pub const Page = struct {
         if (data_size > DATA_SIZE) return false;
 
         return true;
+    }
+    test "validate isValidRecordSize" {
+        const allocator = std.testing.allocator;
+
+        // 1. Initialize a Page
+        var page = try Page.init(allocator, 1);
+
+        // 2. Test with a valid record size
+        try std.testing.expect(!isValidRecordSize(100));
+
+        // 3. Test with a record size of 0 (invalid)
+        try std.testing.expect(!isValidRecordSize(0));
+
+        // 4. Test with a record size larger than the page capacity (invalid)
+        try std.testing.expect(!isValidRecordSize(5000));
+
+        // 5. Cleanup
+        page.deinit();
+    }
+    test "validate hasEnoughSpace" {
+        const allocator = std.testing.allocator;
+
+        // 1. Initialize a Page
+        var page = try Page.init(allocator, 1);
+
+        // 2. Insert records until the page is nearly full
+        const record_data = "Hello, World";
+        while (page.hasEnoughSpace(record_data.len)) {
+            try page.insertRecord(record_data);
+        }
+
+        // 3. Assert that `hasEnoughSpace` returns false for a record that doesn't fit
+        try std.testing.expect(!page.hasEnoughSpace(record_data.len));
+
+        // 4. Cleanup
+        page.deinit();
     }
 };
