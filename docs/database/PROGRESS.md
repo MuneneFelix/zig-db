@@ -1,29 +1,27 @@
 # Learning Progress Tracker
 
 ## Current Status
-- Start Date: [Date]
-- Current Module: [Module Name]
-- Completion: [X]%
+- Start Date: [Insert Start Date]
+- Current Module: Disk Storage (`PageManager` and Disk I/O).
+- Completion: 40%
+
+---
 
 ## Completed Modules
 ### Disk Storage
-- [ ] PageManager
+- [x] PageManager (Basic functionality implemented)
 - [ ] B-Tree Index
 - [ ] WAL
 
-### In-Memory Cache
-- [ ] Key-Value Store
-- [ ] Expiry Manager
-- [ ] Pub/Sub System
-
-### Shared Components
-- [ ] Transaction Manager
-- [ ] Query Processor
+---
 
 ## Notes & Insights
-[Add your learning insights here]
+- `PageManager` uses `std.AutoHashMap` to store pages by ID.
+- Disk I/O functions (`savePage` and `loadPage`) are under development.
+
+---
 
 ## Next Steps
-- [Next topic to cover]
-- [Planned implementation]
-- [Areas to review]
+- Complete disk I/O functionality for `PageManager`.
+- Begin work on garbage collection and page compaction.
+- Design and implement a B-Tree index structure.

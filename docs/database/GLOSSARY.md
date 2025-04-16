@@ -24,9 +24,13 @@
 - **LSN**: Log Sequence Number
 - **Latch**: Short-term lock for physical operations
 
+
 ## P
-- **Page**: Basic unit of storage in databases
-- **Primary Key**: Unique identifier for records
+- **Page**: Basic unit of storage in databases.
+- **PageManager**: Component responsible for managing pages in memory and on disk.
+  - Tracks pages using a hashmap.
+  - Provides disk I/O functionality for persistence.
+  - Handles page creation, deletion, and retrieval.
 
 ## T
 - **Transaction**: Unit of work in a database
