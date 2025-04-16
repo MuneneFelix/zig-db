@@ -12,22 +12,17 @@ pub const PageManager = struct {
     pages: std.AutoHashMap(u32, *Page),
     next_page_id: u32,
     allocator: std.mem.Allocator,
-    
+
     const Self = @This();
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub fn init(allocator: std.mem.Allocator) !Self {
         // Implementation hint:
         // - Initialize pages hashmap
         // - Set initial page_id counter
-        const pages =  std.AutoHashMap(u32, *Page).init(allocator);
+        const pages = std.AutoHashMap(u32, *Page).init(allocator);
         const nextpageid = 1;
-        return Self {
-           .pages =pages,
-           .next_page_id = nextpageid ,
-           .allocator = allocator
-        };
+        return Self{ .pages = pages, .next_page_id = nextpageid, .allocator = allocator };
     }
-    pub fn deinit(self: *Self) void
-    {
+    pub fn deinit(self: *Self) !void {
         self.pages.clearAndFree();
     }
 
@@ -35,26 +30,23 @@ pub const PageManager = struct {
         // Implementation hint:
         // - Check if page exists in memory
         // - If not, load from disk
-        if  (self.pages.get(page_id)) |page|
-        {
+
+        std.debug.print("\n Page Manager Struct {any}\n", .{self});
+
+        if (self.pages.get(page_id)) |page| {
             return page;
-
-        } else 
-        {
-          return try self.loadPage(page_id);
-
+        } else {
+            return try self.loadPage(page_id);
         }
-
     }
-    pub fn createPage(self: *Self) !u32
-    {
+    pub fn createPage(self: *Self) !u32 {
         // Allocate the page struct on the heap
         var new_page = try self.allocator.create(Page);
-        errdefer self.allocator.destroy(new_page);  // Clean up if initialization fails
+        errdefer self.allocator.destroy(new_page); // Clean up if initialization fails
 
         // Initialize the page
         new_page.* = try Page.init(self.allocator, self.next_page_id);
-        errdefer new_page.deinit();  // Clean up if later steps fail
+        errdefer new_page.deinit(); // Clean up if later steps fail
 
         // Initialize the page header
         new_page.header.page_id = self.next_page_id;
@@ -73,10 +65,8 @@ pub const PageManager = struct {
 
         return page_id;
     }
-    pub fn deletePage(self: *Self,page_id:u32) !void
-    {
-        if (self.pages.remove(page_id)) |page|
-        {
+    pub fn deletePage(self: *Self, page_id: u32) !void {
+        if (self.pages.remove(page_id)) |page| {
             //deallocate memory
             page.deinit();
         } else {
@@ -84,21 +74,19 @@ pub const PageManager = struct {
         }
     }
 
-    pub fn savePage(self: *Self) !void
-    {
+    pub fn savePage(self: *Self) !void {
         const file = try std.fs.cwd().createFile(
             DATA_PATH,
-            .{ .write = true, .truncate = true },
+            .{},
         );
         defer file.close();
 
         var writer = file.writer();
 
         var iterator = self.pages.iterator();
-        while (iterator.next()) |entry|
-        {
+        while (iterator.next()) |entry| {
             const page = entry.value_ptr.*;
-            
+
             // Seek to correct position based on page_id
             const offset = page.header.page_id * PageModule.PAGE_SIZE;
             try file.seekTo(offset);
@@ -115,37 +103,36 @@ pub const PageManager = struct {
                 return error.InvalidPageSize;
             }
         }
-    }  
-    pub fn loadPage(self: *Self, page_id: u32) !*Page
-    {
-            const file = try std.fs.cwd().openFile(DATA_PATH, .{.read = true});
-            defer file.close();
+    }
+    pub fn loadPage(self: *Self, page_id: u32) *Page {
+        const file = try std.fs.cwd().openFile(DATA_PATH, .{ .read_write = true });
+        defer file.close();
 
-            //calculate the offset
-            const offset = page_id * PageModule.PAGE_SIZE;
-            try file.seekTo(offset);
+        //calculate the offset
+        const offset = page_id * PageModule.PAGE_SIZE;
+        try file.seekTo(offset);
 
-            //allocate buffer for page data
-            var buffer:[PageModule.PAGE_SIZE]u8 = undefined;
+        //allocate buffer for page data
+        var buffer: [PageModule.PAGE_SIZE]u8 = undefined;
 
-            //read page data
-            try file.readAll(&buffer);
+        //read page data
+        _ = try file.readAll(&buffer);
 
-            //desearilize the page
-            var new_page = try Page.init(self.allocator, page_id);
-            errdefer new_page.deinit();
-            new_page.header =  @as(*PageModule.PageHeader,@ptrCast(&buffer[0])).*;
+        //desearilize the page
+        var new_page = try Page.init(self.allocator, page_id);
+        errdefer new_page.deinit();
 
-            // Allocate memory for the data buffer
-            new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
-            // Copy the data from the buffer
-            std.mem.copy(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
+        //new_page.header = @as(*PageModule.PageHeader, @ptrCast(&buffer[0])).*;
+        const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
+        new_page.header = pageHeaderptr.*;
+        // Allocate memory for the data buffer
+        new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
+        // Copy the data from the buffer
+        std.mem.copyForwards(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
 
-            // Insert the new page into the HashMap
-            try self.pages.put(page_id, &new_page);
+        // Insert the new page into the HashMap
+        try self.pages.put(page_id, &new_page);
 
-            return &new_page;
- 
-    } 
- 
-}; 
+        return &new_page;
+    }
+};
