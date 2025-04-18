@@ -30,8 +30,8 @@ test "loadPage loads a valid page" {
     try page_manager.deinit();
 
     page_manager = try PageManager.init(allocator);
-    _ = page_manager.loadPage(page_id);
-    const page_loaded = try page_manager.getPage(page_id);
+    const page_loaded = page_manager.loadPage(page_id);
+    //const page_loaded = try page_manager.getPage(page_id);
 
     const retrieved_data = try page_loaded.getRecord(record_offset);
     std.testing.expectEqual(record_data, retrieved_data);

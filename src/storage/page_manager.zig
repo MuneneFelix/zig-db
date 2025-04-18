@@ -1,4 +1,5 @@
 const std = @import("std");
+const File = @import("std").fs.File;
 const Page = @import("page.zig").Page;
 const PageModule = @import("page.zig");
 const DATA_PATH = "pages.dat";
@@ -7,6 +8,9 @@ const PageError = error{
     PageNotFound,
     InvalidPageSize,
     ChecksumMismatch,
+};
+const CreateFileError = error{
+    PathAlreadyExists,
 };
 pub const PageManager = struct {
     pages: std.AutoHashMap(u32, *Page),
@@ -104,12 +108,25 @@ pub const PageManager = struct {
             }
         }
     }
+    pub fn createDataFile() !File {
+        const file = std.fs.cwd().createFile(DATA_PATH, .{ .exclusive = true }) catch |e|
+            switch (e) {
+                error.PathAlreadyExists => {
+                    std.debug.print("\n file already exists \n", .{});
+                    return std.fs.cwd().openFile(DATA_PATH, .{ .read = true, .write = true });
+                },
+                else => std.debug.print("\n file creation error {any} \n", .{e}),
+            };
+        return file;
+    }
     pub fn loadPage(self: *Self, page_id: u32) *Page {
-        const file = try std.fs.cwd().openFile(DATA_PATH, .{ .read_write = true });
+        const file = createDataFile();
+        //const file = try std.fs.cwd().openFile(DATA_PATH, .{});
         defer file.close();
 
         //calculate the offset
         const offset = page_id * PageModule.PAGE_SIZE;
+
         try file.seekTo(offset);
 
         //allocate buffer for page data
