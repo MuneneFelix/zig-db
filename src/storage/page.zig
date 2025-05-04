@@ -254,7 +254,7 @@ pub const Page = struct {
         // 2. Insert records until the page is nearly full
         const record_data = "Hello, World";
         while (page.hasEnoughSpace(record_data.len)) {
-            try page.insertRecord(record_data);
+            _ = try page.insertRecord(record_data);
         }
 
         // 3. Assert that `hasEnoughSpace` returns false for a record that doesn't fit
