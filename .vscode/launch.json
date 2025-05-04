@@ -5,7 +5,7 @@
         "name": "Debug Zig Program",
         "type": "lldb",
         "request": "launch",
-        "program": "${workspaceFolder}/zig-out/bin/${input:executableName}",
+        "program": "${workspaceFolder}/.zig-cache/o/d98e5675cc67f9be33f88185a68958d9/test",
         "args": [],
         "cwd": "${workspaceFolder}",
         "preLaunchTask": "build-zig",
