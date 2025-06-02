@@ -2,33 +2,30 @@ const std = @import("std");
 const PageManager = @import("storage/page_manager.zig").PageManager;
 
 pub fn main() !void {
-    const allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    errdefer _ = gpa.deinit();
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+    var page_manager = try PageManager.init(allocator);
 
-    // Initialize the PageManager
-    var page_manager = PageManager.init(allocator);
-    defer page_manager.deinit();
-
-    // Create a new page
     const page_id = try page_manager.createPage();
-    std.debug.print("Created page with ID: {}\n", .{page_id});
+    const page = try page_manager.getPage(page_id);
+    //std.debug.print("Page information {any} ", .{page});
+    const record_data = "Hello World!!";
+    const record_offset = try page.insertRecord(record_data);
+    std.debug.print("print record offset information {d}", .{record_offset});
+    try page_manager.savePage();
 
-    // Perform operations on the page
-    // Example: Write data to the page, read it back, etc.
+    try page_manager.deinit();
 
-    // Flush any buffered data
-    //try page_manager.flush();
-}
+    page_manager = try PageManager.init(allocator);
 
-test "storage engine integration test" {
-    const allocator = std.testing.allocator;
+    const page_loaded = try page_manager.loadPage(page_id);
+    //std.debug.print("Page loaded data {any} ", .{page_loaded});
+    std.debug.print("Record Offset: {}\n", .{record_offset});
+    std.debug.print("Data Length: {}\n", .{page_loaded.data.len});
+    std.debug.print("Offset: {}\n", .{record_offset});
+    const retrieved_data = try page_loaded.getRecord(record_offset);
 
-    // Initialize the PageManager
-    var page_manager = PageManager.init(allocator);
-    defer page_manager.deinit();
-
-    // Test creating a page
-    const page_id = try page_manager.createPage();
-    try std.testing.expect(page_id != 0);
-
-    // Additional tests for reading/writing data
+    std.debug.print("retrieved data {any} vs the record data {any}", .{ retrieved_data, record_data });
 }

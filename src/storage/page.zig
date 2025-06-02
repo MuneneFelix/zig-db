@@ -194,7 +194,7 @@ pub const Page = struct {
         if (recHeader.size > DATA_SIZE or recHeader.size == 0) {
             return DeleteRecordError.InvalidRecord;
         }
-
+        //std.debug.print("page data length {any}", .{self.data.len});
         // 3. Return record data
         const data = self.data[offset + @sizeOf(RecordHeader) .. offset + recHeader.size + @sizeOf(RecordHeader)];
 

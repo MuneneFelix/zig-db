@@ -19,6 +19,7 @@ pub const PageManager = struct {
     allocator: std.mem.Allocator,
 
     const Self = @This();
+
     pub fn init(allocator: std.mem.Allocator) !Self {
         // Implementation hint:
         // - Initialize pages hashmap
@@ -27,6 +28,7 @@ pub const PageManager = struct {
         const nextpageid = 1;
         return Self{ .pages = pages, .next_page_id = nextpageid, .allocator = allocator };
     }
+
     pub fn deinit(self: *Self) !void {
         self.pages.clearAndFree();
     }
@@ -44,6 +46,7 @@ pub const PageManager = struct {
             return try self.loadPage(page_id);
         }
     }
+
     pub fn createPage(self: *Self) !u32 {
         // Allocate the page struct on the heap
         var new_page = try self.allocator.create(Page);
@@ -123,6 +126,60 @@ pub const PageManager = struct {
             };
         return file;
     }
+
+    pub fn loadPage(self: *Self, page_id: u32) !*Page {
+        // Step 1: Open or create the data file
+        const file = try createDataFile();
+        defer file.close(); // Ensure the file is closed even if an error occurs
+
+        // Step 2: Calculate the offset for the page
+        const offset = page_id * PageModule.PAGE_SIZE;
+
+        // Step 3: Seek to the correct position in the file
+        // try file.seekTo(offset) catch |e| {
+        //     std.debug.print("Error seeking to offset {}: {}\n", .{ offset, e });
+        //     return e; // Propagate the error
+        // };
+        try file.seekTo(offset);
+
+        // Step 4: Allocate a buffer for reading the page data
+        var buffer: [PageModule.PAGE_SIZE]u8 = undefined;
+
+        // Step 5: Read the page data into the buffer
+        // _ = try file.readAll(&buffer) catch |e| {
+        //     std.debug.print("Error reading page data: {}\n", .{e});
+        //     return e; // Propagate the error
+        // };
+        _ = try file.readAll(&buffer);
+
+        // Step 6: Deserialize the page
+        var new_page = try Page.init(self.allocator, page_id);
+        errdefer new_page.deinit(); // Clean up if an error occurs later
+
+        const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
+        new_page.header = pageHeaderptr.*;
+
+        // Step 7: Allocate memory for the page's data buffer
+        // new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE) catch |e| {
+        //     std.debug.print("Error allocating memory for page data: {}\n", .{e});
+        //     return e; // Propagate the error
+        // };
+
+        new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
+
+        // Step 8: Copy the data from the buffer into the page's data buffer
+        std.mem.copyForwards(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
+
+        // Step 9: Insert the new page into the HashMap
+        // try self.pages.put(page_id, &new_page) catch |e| {
+        //     std.debug.print("Error inserting page into HashMap: {}\n", .{e});
+        //     return e; // Propagate the error
+        // };
+        try self.pages.put(page_id, &new_page);
+        // Step 10: Return the new page
+        return &new_page;
+    }
+
     test "createDataFile creates a new file" {
         // const allocator = std.testing.allocator;
 
@@ -138,53 +195,5 @@ pub const PageManager = struct {
 
         // Verify that the file now exists
         try std.testing.expect(fs.exists(DATA_PATH));
-    }
-    pub fn loadPage(self: *Self, page_id: u32) !*Page {
-        // Step 1: Open or create the data file
-        const file = try createDataFile();
-        defer file.close(); // Ensure the file is closed even if an error occurs
-
-        // Step 2: Calculate the offset for the page
-        const offset = page_id * PageModule.PAGE_SIZE;
-
-        // Step 3: Seek to the correct position in the file
-        try file.seekTo(offset) catch |e| {
-            std.debug.print("Error seeking to offset {}: {}\n", .{ offset, e });
-            return e; // Propagate the error
-        };
-
-        // Step 4: Allocate a buffer for reading the page data
-        var buffer: [PageModule.PAGE_SIZE]u8 = undefined;
-
-        // Step 5: Read the page data into the buffer
-        _ = try file.readAll(&buffer) catch |e| {
-            std.debug.print("Error reading page data: {}\n", .{e});
-            return e; // Propagate the error
-        };
-
-        // Step 6: Deserialize the page
-        var new_page = try Page.init(self.allocator, page_id);
-        errdefer new_page.deinit(); // Clean up if an error occurs later
-
-        const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
-        new_page.header = pageHeaderptr.*;
-
-        // Step 7: Allocate memory for the page's data buffer
-        new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE) catch |e| {
-            std.debug.print("Error allocating memory for page data: {}\n", .{e});
-            return e; // Propagate the error
-        };
-
-        // Step 8: Copy the data from the buffer into the page's data buffer
-        std.mem.copyForwards(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
-
-        // Step 9: Insert the new page into the HashMap
-        try self.pages.put(page_id, &new_page) catch |e| {
-            std.debug.print("Error inserting page into HashMap: {}\n", .{e});
-            return e; // Propagate the error
-        };
-
-        // Step 10: Return the new page
-        return &new_page;
     }
 };
