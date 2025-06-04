@@ -2,9 +2,9 @@ const std = @import("std");
 const PageManager = @import("storage/page_manager.zig").PageManager;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .verbose_log = true }){};
     errdefer _ = gpa.deinit();
-    defer _ = gpa.deinit();
+    //defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     var page_manager = try PageManager.init(allocator);
@@ -25,7 +25,15 @@ pub fn main() !void {
     std.debug.print("Data Length: {}\n", .{page_loaded.data.len});
     std.debug.print("Offset: {}\n", .{record_offset});
     const retrieved_data = try page_loaded.getRecord(record_offset);
-    try std.testing.expectEqual(record_data, retrieved_data);
+
+    const are_equal = std.mem.eql(u8, record_data, retrieved_data);
+    if (!are_equal) {
+        std.debug.print("Error: Strings do not match!\nRecord Data: {s}\nRetrieved Data: {s}\n", .{ record_data, retrieved_data });
+        return error.StringMismatch;
+    } else {
+        std.debug.print("Strings match successfully!\n", .{});
+    }
+    //try std.testing.expectEqual(record_data, retrieved_data);
     // std.debug.print("retrieved data {any} vs the record data {any}", .{ retrieved_data, record_data });
 
 }
