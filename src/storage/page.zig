@@ -67,6 +67,11 @@ pub const Page = struct {
 
     const Self = @This();
 
+    pub fn initPtr(self: *Page, allocator: std.mem.Allocator, page_id: u32) !void {
+        self.header = PageHeader{ .page_id = page_id, .next_page = 0, .checksum = 0, .free_space_offset = DATA_SIZE, .record_count = 0, .flags = 0 };
+        self.allocator = allocator;
+        self.data = try allocator.alloc(u8, DATA_SIZE);
+    }
     pub fn init(allocator: std.mem.Allocator, page_id: u32) !Self {
         // Implementation hint:
         // - Allocate fixed size page (e.g. 4KB)

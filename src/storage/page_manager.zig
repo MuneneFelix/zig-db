@@ -29,7 +29,12 @@ pub const PageManager = struct {
         return Self{ .pages = pages, .next_page_id = nextpageid, .allocator = allocator };
     }
 
-    pub fn deinit(self: *Self) !void {
+    pub fn deinit(self: *Self) void {
+        var it = self.pages.iterator();
+        while (it.next()) |entry| {
+            entry.value_ptr.*.deinit();
+            self.allocator.destroy(entry.value_ptr.*);
+        }
         self.pages.clearAndFree();
     }
 
@@ -38,7 +43,7 @@ pub const PageManager = struct {
         // - Check if page exists in memory
         // - If not, load from disk
 
-        std.debug.print("\n Page Manager Struct {any}\n", .{self});
+        //std.debug.print("\n Page Manager Struct {any}\n", .{self});
 
         if (self.pages.get(page_id)) |page| {
             return page;
@@ -77,6 +82,7 @@ pub const PageManager = struct {
         if (self.pages.remove(page_id)) |page| {
             //deallocate memory
             page.deinit();
+            self.allocator.destroy(page);
         } else {
             return error.PageNotFound;
         }
@@ -153,11 +159,14 @@ pub const PageManager = struct {
         _ = try file.readAll(&buffer);
 
         // Step 6: Deserialize the page
-        var new_page = try Page.init(self.allocator, page_id);
-        errdefer new_page.deinit(); // Clean up if an error occurs later
+        var new_page = try self.allocator.create(Page);
+        try new_page.initPtr(self.allocator, page_id);
+        errdefer new_page.deinit();
 
-        const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
-        new_page.header = pageHeaderptr.*;
+        //const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
+        //var header: PageModule.PageHeader = undefined;
+        std.mem.copyForwards(u8, std.mem.asBytes(&new_page.header), buffer[0..@sizeOf(PageModule.PageHeader)]);
+        //new_page.header = header;
 
         // Step 7: Allocate memory for the page's data buffer
         // new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE) catch |e| {
@@ -175,9 +184,9 @@ pub const PageManager = struct {
         //     std.debug.print("Error inserting page into HashMap: {}\n", .{e});
         //     return e; // Propagate the error
         // };
-        try self.pages.put(page_id, &new_page);
+        try self.pages.put(page_id, new_page);
         // Step 10: Return the new page
-        return &new_page;
+        return new_page;
     }
 
     test "createDataFile creates a new file" {
