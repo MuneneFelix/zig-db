@@ -173,8 +173,8 @@ pub const PageManager = struct {
         //     std.debug.print("Error allocating memory for page data: {}\n", .{e});
         //     return e; // Propagate the error
         // };
-
-        new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
+        //was double allocated within the initPtr function and on the next line
+        //new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
 
         // Step 8: Copy the data from the buffer into the page's data buffer
         std.mem.copyForwards(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
