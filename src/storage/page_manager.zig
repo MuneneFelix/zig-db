@@ -9,6 +9,7 @@ const PageError = error{
     PageNotFound,
     InvalidPageSize,
     ChecksumMismatch,
+    PageDeleted,
 };
 const CreateFileError = error{
     PathAlreadyExists,
@@ -38,17 +39,21 @@ pub const PageManager = struct {
         self.pages.clearAndFree();
     }
 
-    pub fn getPage(self: *Self, page_id: u32) !*Page {
+    pub fn getPage(self: *Self, page_id: u32, include_deleted: ?bool) !*Page {
         // Implementation hint:
         // - Check if page exists in memory
         // - If not, load from disk
 
         //std.debug.print("\n Page Manager Struct {any}\n", .{self});
-
+        const should_include_deleted = include_deleted orelse false;
         if (self.pages.get(page_id)) |page| {
-            return page;
+            if (!should_include_deleted and page.header.is_deleted) {
+                return PageError.PageDeleted;
+            } else {
+                return page;
+            }
         } else {
-            return try self.loadPage(page_id);
+            return try self.loadPage(page_id, include_deleted);
         }
     }
 
@@ -79,12 +84,21 @@ pub const PageManager = struct {
         return page_id;
     }
     pub fn deletePage(self: *Self, page_id: u32) !void {
-        if (self.pages.remove(page_id)) |page| {
-            //deallocate memory
+        //const page = self.getPage(page_id);
+        //try page.deinit();
+
+        if (self.pages.get(page_id)) |page| {
+            //Mark as deleted on disk before clearing from memory
+            page.header.is_deleted = true;
+            try self.savePage();
+            //let the page_manager.deinit handle all of memory freeing
             page.deinit();
+
             self.allocator.destroy(page);
+            const removed = self.pages.remove(page_id);
+            std.debug.print("The page with id {} has been removed {}", .{ page_id, removed });
         } else {
-            return error.PageNotFound;
+            return PageError.PageNotFound;
         }
     }
 
@@ -133,7 +147,8 @@ pub const PageManager = struct {
         return file;
     }
 
-    pub fn loadPage(self: *Self, page_id: u32) !*Page {
+    pub fn loadPage(self: *Self, page_id: u32, include_deleted: ?bool) !*Page {
+        const should_include_deleted = include_deleted orelse false;
         // Step 1: Open or create the data file
         const file = try createDataFile();
         defer file.close(); // Ensure the file is closed even if an error occurs
@@ -161,7 +176,11 @@ pub const PageManager = struct {
         // Step 6: Deserialize the page
         var new_page = try self.allocator.create(Page);
         try new_page.initPtr(self.allocator, page_id);
-        errdefer new_page.deinit();
+        errdefer {
+            new_page.deinit();
+            self.allocator.destroy(new_page);
+        }
+        //errdefer new_page.deinit();
 
         //const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
         //var header: PageModule.PageHeader = undefined;
@@ -184,25 +203,14 @@ pub const PageManager = struct {
         //     std.debug.print("Error inserting page into HashMap: {}\n", .{e});
         //     return e; // Propagate the error
         // };
-        try self.pages.put(page_id, new_page);
+
         // Step 10: Return the new page
-        return new_page;
-    }
-
-    test "createDataFile creates a new file" {
-        // const allocator = std.testing.allocator;
-
-        // Ensure the file does not exist before the test
-        const fs = std.fs.cwd();
-        if (fs.exists(DATA_PATH)) {
-            try fs.deleteFile(DATA_PATH);
+        if (!should_include_deleted and new_page.header.is_deleted) {
+            //new_page.deinit();
+            return PageError.PageDeleted;
+        } else {
+            try self.pages.put(page_id, new_page);
+            return new_page;
         }
-
-        // Call createDataFile
-        const file = try PageManager.createDataFile();
-        defer file.close();
-
-        // Verify that the file now exists
-        try std.testing.expect(fs.exists(DATA_PATH));
     }
 };

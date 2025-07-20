@@ -17,6 +17,7 @@ pub const PageHeader = struct {
     record_count: u16,
     checksum: u32, // For data integrity
     flags: u16,
+    is_deleted: bool = false,
 };
 
 pub const RecordHeader = struct {
