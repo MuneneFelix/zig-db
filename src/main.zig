@@ -6,6 +6,19 @@ pub fn main() !void {
     errdefer _ = gpa.deinit();
     //defer _ = gpa.deinit();
     const allocator = gpa.allocator();
+    var page_manager = try PageManager.init(allocator);
+    defer page_manager.deinit();
+    const page_id = try page_manager.createPage();
+
+    try page_manager.deletePage(page_id);
+
+    //try std.testing.expectError(PageError.PageNotFound, page_manager.getPage(page_id));
+}
+pub fn testLoadData() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .verbose_log = true }){};
+    errdefer _ = gpa.deinit();
+    //defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     var page_manager = try PageManager.init(allocator);
 

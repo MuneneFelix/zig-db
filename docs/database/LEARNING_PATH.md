@@ -1,145 +1,100 @@
-# Database Implementation Lessons
+# Database Engineering Learning Path
 
-## Part 1: Storage Engine Basics
-Starting from our current TodoApp file I/O:
+This document provides a structured path to understand both the theoretical concepts and their implementation in our codebase.
 
-### Lesson 1: From Files to Pages
-Current:
-- Simple file serialization
-- Line-based storage
-- Direct file I/O
+## 1. Foundational Concepts (Week 1-2)
 
-Goals:
-- [ ] Implement page-based storage
-- [ ] Add page headers
-- [ ] Create page manager
+### Memory & Storage
+1. Read: "Advanced Programming in the UNIX Environment" Ch.7
+2. Study: [`src/storage/page.zig`](src/storage/page.zig) implementation
+3. Practice: Implement a simple record manager
 
-### Lesson 2: Buffer Management
-Current:
-- Direct memory allocation
-- Basic array management
+### Data Structures
+1. Study: HashMaps and B-trees fundamentals
+2. Review: Our HashMap usage in PageManager
+3. Practice: Implement a basic B-tree (preparation for indexing)
 
-Goals:
-- [ ] Implement buffer pool
-- [ ] Add page replacement (LRU)
-- [ ] Handle dirty pages
+## 2. Page Management (Week 3-4)
 
-### Lesson 3: Record Storage
-Current:
-- Fixed Todo structure
-- String-based serialization
+### Basic Concepts
+1. Read: "Database Management Systems" Ch.9
+2. Study: [`src/storage/page_manager.zig`](src/storage/page_manager.zig)
+3. Practice: Add features to PageManager
 
-Goals:
-- [ ] Variable-length records
-- [ ] Record headers
-- [ ] Slotted pages
+### Advanced Topics
+1. Study: Buffer pool management
+2. Read: "The Design of the POSTGRES Storage System"
+3. Practice: Implement page replacement strategies
 
-## Part 2: Tree Structures & Indexing
-Current:
-- Linear array storage
-- Sequential search
+## 3. File Organization (Week 5-6)
 
-### Lesson 4: B-tree Basics
-Goals:
-- [ ] B-tree node structure
-- [ ] Basic operations
-- [ ] Page splits/merges
+### Storage Engine
+1. Read: "Database System Concepts" Ch.10
+2. Study: Our page-based storage implementation
+3. Practice: Enhance file I/O operations
 
-### Lesson 5: Index Management
-Goals:
-- [ ] Primary index (ID)
-- [ ] Secondary indexes
-- [ ] Index maintenance
+### Data Integrity
+1. Study: Checksums and error detection
+2. Review: Our page validation methods
+3. Practice: Implement recovery mechanisms
 
-## Part 3: Transaction Processing
-Current:
-- Single operation atomicity
-- No recovery mechanism
+## 4. Advanced Topics (Week 7-8)
 
-### Lesson 6: ACID Properties
-Goals:
-- [ ] Transaction boundaries
-- [ ] Rollback support
-- [ ] Durability guarantees
+### Transaction Management
+1. Read: "ARIES: A Transaction Recovery Method"
+2. Study: ACID properties implementation
+3. Practice: Implement basic transaction support
 
-### Lesson 7: Write-Ahead Logging
-Goals:
-- [ ] WAL implementation
-- [ ] Recovery protocol
-- [ ] Checkpoint mechanism
+### Indexing
+1. Read: "The Ubiquitous B-Tree"
+2. Study: B-tree implementation techniques
+3. Practice: Start implementing B-tree index
 
-## Part 4: Query Processing
-Current:
-- Basic CRUD operations
-- Simple filtering
+## Practical Exercises
 
-### Lesson 8: Query Execution
-Goals:
-- [ ] Query planning
-- [ ] Join operations
-- [ ] Optimization basics
+### Week 1-2
+- Modify record layout
+- Add record compression
+- Implement record iteration
 
-## Learning Approach
-1. Each lesson will:
-   - Explain theory
-   - Show current limitations
-   - Implement improvements
-   - Include exercises
+### Week 3-4
+- Add page compression
+- Implement page splitting
+- Add buffer pool management
 
-2. We'll evolve the TodoApp to use:
-   - Page-based storage
-   - Proper indexing
-   - Transaction support
-   - Query optimization
+### Week 5-6
+- Enhance file format
+- Add page recovery
+- Implement WAL
 
-+-------------------+
-|   Fusion Database |
-+-------------------+
-        |
-        v
-+-------------------+     +-------------------+
-|   Disk Storage    |     |   In-Memory Cache |
-+-------------------+     +-------------------+
-| - PageManager     |     | - Key-Value Store |
-| - B-Tree Index    |     | - Expiry Manager  |
-| - WAL (Logging)   |     | - Pub/Sub System  |
-+-------------------+     +-------------------+
-        |                         |
-        v                         v
-+-------------------+     +-------------------+
-|   Page            |     |   Cache Entry     |
-+-------------------+     +-------------------+
-| - PageHeader      |     | - Key             |
-| - Data Buffer     |     | - Value           |
-+-------------------+     +-------------------+
-        |                         |
-        v                         v
-+-------------------+     +-------------------+
-|   Record          |     |   Expiry Timer    |
-+-------------------+     +-------------------+
-| - Fields          |     | - Expiry Time     |
-| - Offsets         |     | - Callback        |
-+-------------------+     +-------------------+
+### Week 7-8
+- Add basic transactions
+- Implement B-tree nodes
+- Add concurrent access
 
-# Fusion Database Learning Path
+## Additional Resources
 
-## Part 1: Disk Storage
-- [ ] Implement PageManager
-- [ ] Develop B-Tree Index
-- [ ] Set Up WAL
+### Tools
+- LLDB for debugging
+- Valgrind for memory analysis
+- perf for performance profiling
 
-## Part 2: In-Memory Cache
-- [ ] Build Key-Value Store
-- [ ] Create Expiry Manager
-- [ ] Develop Pub/Sub System
+### Documentation
+- See REFERENCES.md for detailed sources
+- Review GLOSSARY.md for terminology
+- Study inline code documentation
 
-## Part 3: Shared Components
-- [ ] Design Transaction Manager
-- [ ] Implement Query Processor
+## Contribution Path
 
-## Learning Approach
-1. Each part will:
-   - Explain theory
-   - Show current limitations
-   - Implement improvements
-   - Include exercises
+1. Start with simple bug fixes
+2. Add test cases
+3. Implement small features
+4. Work on larger components
+
+## Code Review Checklist
+
+- Memory management correct?
+- Error handling comprehensive?
+- Tests included?
+- Documentation updated?
+- Performance considered?

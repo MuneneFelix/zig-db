@@ -25,7 +25,7 @@ test "loadPage loads a valid page" {
 
     var page_manager = PageManager.init(allocator);
     const page_id = try page_manager.createPage();
-    const page = try page_manager.getPage(page_id);
+    const page = try page_manager.getPage(page_id, false);
     const record_data = "Hello World!!";
     const record_offset = try page.insertRecord(record_data);
 
@@ -34,8 +34,8 @@ test "loadPage loads a valid page" {
     try page_manager.deinit();
 
     page_manager = PageManager.init(allocator);
-    const page_loaded = page_manager.loadPage(page_id);
-    //const page_loaded = try page_manager.getPage(page_id);
+    const page_loaded = page_manager.loadPage(page_id, false);
+    //const page_loaded = try page_manager.getPage(page_id,false);
 
     const retrieved_data = try page_loaded.getRecord(record_offset);
     std.testing.expectEqual(record_data, retrieved_data);
