@@ -7,6 +7,7 @@ The system is structured to focus on database development, emphasizing storage, 
 
 ### 1. Storage Engine
 - Page-based storage
+- Buffer pool management for memory caching
 - Page manager for memory and disk management
 - Write-ahead logging (WAL) for durability
 
@@ -24,12 +25,14 @@ The system is structured to focus on database development, emphasizing storage, 
 - Join operations
 
 ## Data Flow
-1. User Input → Storage Engine
-2. Storage Engine → Indexing
-3. Indexing → Query Engine
-4. Query Engine → Transaction Management
+1. User Input → Query Engine
+2. Query Engine → Buffer Pool
+3. Buffer Pool → Storage Engine
+4. Storage Engine → Indexing
+5. Query Engine → Transaction Management
 
 ## Performance Considerations
+- Buffer pool hit ratio
 - Efficient page management
 - Index optimization
 - Transaction throughput
