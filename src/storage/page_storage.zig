@@ -10,6 +10,16 @@ const std = @import("std");
 const File = @import("std").fs.File;
 const Page = @import("page.zig").Page;
 const DATA_PATH = "pages.dat";
+const PageError = error{
+    InvalidPageId,
+    PageNotFound,
+    InvalidPageSize,
+    ChecksumMismatch,
+    PageDeleted,
+};
+const CreateFileError = error{
+    PathAlreadyExists,
+};
 pub const PageStorage = struct {
     allocator: std.mem.Allocator,
     file_path: []const u8,
@@ -102,7 +112,7 @@ pub const PageStorage = struct {
             //new_page.deinit();
             return PageError.PageDeleted;
         } else {
-            try self.pages.put(page_id, new_page);
+            
             return new_page;
         }
     }
