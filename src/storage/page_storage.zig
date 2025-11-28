@@ -13,15 +13,12 @@ const DATA_PATH = "pages.dat";
 pub const PageStorage = struct {
     allocator: std.mem.Allocator,
     file_path: []const u8,
-    next_page_id: u32,
-    metadata_dirty: bool,
 
     const Self = @This();
     //declare init function
     pub fn init(allocator: std.mem.Allocator, file_path: []const u8) !Self {
         const fpath = if (file_path.len == 0) DATA_PATH else file_path;
-        const nextpageid = 1;
-        return Self{ .file_path = fpath, .next_page_id = nextpageid, .allocator = allocator, .metadata_dirty = false };
+        return Self{ .file_path = fpath, .allocator = allocator };
     }
     pub fn deinit(self: *Self) void {
         // Flush dirty metadata
@@ -80,7 +77,7 @@ pub const PageStorage = struct {
 
         //const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
         //var header: PageModule.PageHeader = undefined;
-        std.mem.copyForwards(u8, std.mem.asBytes(&new_page.header), buffer[0..@sizeOf(PageModule.PageHeader)]);
+        std.mem.copyForwards(u8, std.mem.asBytes(&new_page.header), buffer[0..@sizeOf(Page.PageHeader)]);
         //new_page.header = header;
 
         // Step 7: Allocate memory for the page's data buffer
@@ -92,7 +89,7 @@ pub const PageStorage = struct {
         //new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
 
         // Step 8: Copy the data from the buffer into the page's data buffer
-        std.mem.copyForwards(u8, new_page.data, buffer[PageModule.HEADER_SIZE..]);
+        std.mem.copyForwards(u8, new_page.data, buffer[Page.HEADER_SIZE..]);
 
         // Step 9: Insert the new page into the HashMap
         // try self.pages.put(page_id, &new_page) catch |e| {
@@ -141,15 +138,12 @@ pub const PageStorage = struct {
         try savePageToDisk(page);
         self.metadata_dirty = true;
     }
-    //declare savemetadata function
-    pub fn saveMetaData() !void {}
-    //declare createfiletodisk
-    pub fn createDataFile(file_path: []u8) !File {
-        const file = std.fs.cwd().createFile(file_path, .{ .exclusive = true }) catch |e|
+    pub fn createDataFile(self: *Self) !File {
+        const file = std.fs.cwd().createFile(self.file_path, .{ .exclusive = true }) catch |e|
             switch (e) {
                 error.PathAlreadyExists => {
                     std.debug.print("\n file already exists \n", .{});
-                    return std.fs.cwd().openFile(DATA_PATH, .{});
+                    return std.fs.cwd().openFile(self.file_path, .{});
                 },
                 else => {
                     std.debug.print("\n file creation error {any} \n", .{e});
