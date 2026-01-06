@@ -31,13 +31,6 @@ pub const PageStorage = struct {
         return Self{ .file_path = fpath, .allocator = allocator };
     }
     pub fn deinit(self: *Self) void {
-        // Flush dirty metadata
-        if (self.metadata_dirty) {
-            self.saveMetadata() catch |err| {
-                std.log.err("Failed to save metadata: {}", .{err});
-            };
-        }
-
         self.allocator.free(self.file_path);
     }
 
@@ -105,11 +98,10 @@ pub const PageStorage = struct {
         }
     }
     //declare deletepagefromdisk function
-    pub fn deletePageFromDisk(self: *Self, page_id: u32) !void {
+    pub fn deletePageFromDisk(page_id: u32) !void {
         var page = try loadPageFromDisk(page_id, false);
         page.is_deleted = true;
         try savePageToDisk(page);
-        self.metadata_dirty = true;
     }
     pub fn createDataFile(self: *Self) !File {
         const file = std.fs.cwd().createFile(self.file_path, .{ .exclusive = true }) catch |e|
