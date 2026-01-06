@@ -41,14 +41,6 @@ pub const PageStorage = struct {
         self.allocator.free(self.file_path);
     }
 
-    //declare allocatePageId function
-    pub fn declarePageId(self: *Self) u32 {
-        const page_id = self.next_page_id;
-        self.next_page_id += 1;
-        self.metadata_dirty = true;
-        return page_id; // Just a number!
-
-    }
     //declare LoadPageFromDisk function
     pub fn loadPageFromDisk(self: *Self, page_id: u32, include_deleted: ?bool) !*Page {
         const should_include_deleted = include_deleted orelse false;
@@ -59,21 +51,11 @@ pub const PageStorage = struct {
         // Step 2: Calculate the offset for the page
         const offset = page_id * Page.PAGE_SIZE;
 
-        // Step 3: Seek to the correct position in the file
-        // try file.seekTo(offset) catch |e| {
-        //     std.debug.print("Error seeking to offset {}: {}\n", .{ offset, e });
-        //     return e; // Propagate the error
-        // };
         try file.seekTo(offset);
 
         // Step 4: Allocate a buffer for reading the page data
         var buffer: [Page.PAGE_SIZE]u8 = undefined;
 
-        // Step 5: Read the page data into the buffer
-        // _ = try file.readAll(&buffer) catch |e| {
-        //     std.debug.print("Error reading page data: {}\n", .{e});
-        //     return e; // Propagate the error
-        // };
         _ = try file.readAll(&buffer);
 
         // Step 6: Deserialize the page
@@ -83,36 +65,17 @@ pub const PageStorage = struct {
             new_page.deinit();
             self.allocator.destroy(new_page);
         }
-        //errdefer new_page.deinit();
 
-        //const pageHeaderptr: *PageModule.PageHeader = @ptrCast(@alignCast(&buffer[0]));
-        //var header: PageModule.PageHeader = undefined;
         std.mem.copyForwards(u8, std.mem.asBytes(&new_page.header), buffer[0..@sizeOf(Page.PageHeader)]);
-        //new_page.header = header;
-
-        // Step 7: Allocate memory for the page's data buffer
-        // new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE) catch |e| {
-        //     std.debug.print("Error allocating memory for page data: {}\n", .{e});
-        //     return e; // Propagate the error
-        // };
-        //was double allocated within the initPtr function and on the next line
-        //new_page.data = try self.allocator.alloc(u8, PageModule.DATA_SIZE);
 
         // Step 8: Copy the data from the buffer into the page's data buffer
         std.mem.copyForwards(u8, new_page.data, buffer[Page.HEADER_SIZE..]);
-
-        // Step 9: Insert the new page into the HashMap
-        // try self.pages.put(page_id, &new_page) catch |e| {
-        //     std.debug.print("Error inserting page into HashMap: {}\n", .{e});
-        //     return e; // Propagate the error
-        // };
 
         // Step 10: Return the new page
         if (!should_include_deleted and new_page.header.is_deleted) {
             //new_page.deinit();
             return PageError.PageDeleted;
         } else {
-            
             return new_page;
         }
     }
@@ -126,7 +89,7 @@ pub const PageStorage = struct {
         defer file.close();
 
         var writer = file.writer();
-        const offset = (page.header.page_id * Page.PAGE_SIZE) + @sizeOf(self);
+        const offset = (page.header.page_id * Page.PAGE_SIZE);
         try file.seekTo(offset);
 
         // Write header
