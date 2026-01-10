@@ -97,6 +97,31 @@ pub const PageStorage = struct {
             return error.InvalidPageSize;
         }
     }
+
+    //delcare writePageToDisk, this assumes file exists and opens seeks and writes
+    pub fn writePageToDisk(self: *Self, page: Page) !void {
+        const file = try std.fs.cwd().openFile(
+            self.file_path,
+            .{},
+        );
+        defer file.close();
+
+        var writer = file.writer();
+        const offset = (page.header.page_id * Page.PAGE_SIZE);
+        try file.seekTo(offset);
+
+        // Write header
+        const header_bytes = std.mem.asBytes(&page.header);
+        try writer.writeAll(header_bytes);
+
+        // Write data
+        try writer.writeAll(page.data);
+
+        // Verify written size
+        if (header_bytes.len + page.data.len != Page.PAGE_SIZE) {
+            return error.InvalidPageSize;
+        }
+    }
     //declare deletepagefromdisk function
     pub fn deletePageFromDisk(page_id: u32) !void {
         var page = try loadPageFromDisk(page_id, false);

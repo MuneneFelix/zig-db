@@ -93,6 +93,24 @@ pub const Page = struct {
         //return page struct
 
     }
+    pub fn initEmpty(allocator: std.mem.Allocator) !Self {
+        // Implementation hint:
+        // - Allocate fixed size page (e.g. 4KB)
+        // - Initialize header
+        //checks for valid page id
+        const page_id = 0;
+
+        //allocate byte buffer for data
+        const data = try allocator.alloc(u8, DATA_SIZE);
+
+        const page_header = PageHeader{ .page_id = page_id, .next_page = 0, .checksum = 0, .free_space_offset = DATA_SIZE, .record_count = 0, .flags = 0 };
+        return Self{ .header = page_header, .data = data, .allocator = allocator };
+
+        //create page header instance
+        //initialize header fields
+        //return page struct
+
+    }
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.data);
     }
